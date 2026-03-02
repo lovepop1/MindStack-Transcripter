@@ -25,7 +25,7 @@ def get_transcript(v: str = None, start: float = None, end: float = None):
         
     try:
         ytt_api = YouTubeTranscriptApi()
-        transcript_list = ytt_api.list(v)
+        transcript_list = ytt_api.list_transcripts(v)
         
         try:
             # First try to find manual transcripts
