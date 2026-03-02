@@ -24,8 +24,7 @@ def get_transcript(v: str = None, start: float = None, end: float = None):
         return JSONResponse(status_code=400, content={"error": "Missing video ID"})
         
     try:
-        ytt_api = YouTubeTranscriptApi()
-        transcript_list = ytt_api.list_transcripts(v)
+        transcript_list = YouTubeTranscriptApi.list_transcripts(v)
         
         try:
             # First try to find manual transcripts
