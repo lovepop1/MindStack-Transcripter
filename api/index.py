@@ -27,18 +27,24 @@ def get_transcript(v: str = None, start: float = None, end: float = None):
         # Some versions/environments of youtube-transcript-api use different base methods
         full_text = ""
         
+        # Universal attribute getter for dicts vs objects
+        def get_val(item, key):
+            if isinstance(item, dict):
+                return item.get(key)
+            return getattr(item, key, None)
+        
         try:
             # Try newer functional approach if available (common in pip 3.11+)
             from youtube_transcript_api import YouTubeTranscriptApi as yta
             if hasattr(yta, 'get_transcript'):
                 data = yta.get_transcript(v, languages=['en', 'en-US', 'en-GB', 'hi'])
-                filtered_segments = [s['text'] for s in data]
+                filtered_segments = [get_val(s, 'text') for s in data]
                 if start is not None and end is not None:
                     buffered_start = max(0, start - 15)
                     buffered_end = end + 15
-                    filtered_segments = [s['text'] for s in data if (s['start'] + s['duration']) >= buffered_start and s['start'] <= buffered_end]
+                    filtered_segments = [get_val(s, 'text') for s in data if (get_val(s, 'start') + get_val(s, 'duration')) >= buffered_start and get_val(s, 'start') <= buffered_end]
                     if not filtered_segments:
-                        filtered_segments = [s['text'] for s in data]
+                        filtered_segments = [get_val(s, 'text') for s in data]
                 return {"transcript": " ".join(filtered_segments)}
         except Exception as dynamic_err:
             pass # Fallback to Object-Oriented extraction
@@ -65,14 +71,7 @@ def get_transcript(v: str = None, start: float = None, end: float = None):
                 transcript = next(iter(transcript_list))
             
         data = transcript.fetch()
-        
-        # Universal attribute getter for dicts vs objects
-        def get_val(item, key):
-            if isinstance(item, dict):
-                return item.get(key)
-            return getattr(item, key, None)
 
-        # Slice transcript by start and end times if provided
         if start is not None and end is not None:
             # Add a 15-second buffer before and after for optimal context
             buffered_start = max(0, start - 15)
@@ -91,4 +90,9 @@ def get_transcript(v: str = None, start: float = None, end: float = None):
             
         return {"transcript": full_text}
     except Exception as e:
-        return JSONResponse(status_code=500, content={"error": str(e)})
+        error_msg = str(e)
+        # If the api explicitly threw an exception saying it can't find a transcript, that is a 404, not a 500.
+        if "Could not retrieve a transcript" in error_msg or "No transcripts were found" in error_msg or "disabled" in error_msg.lower():
+            return JSONResponse(status_code=404, content={"error": "Transcript not found or disabled for this video."})
+            
+        return JSONResponse(status_code=500, content={"error": error_msg})
